@@ -1,0 +1,172 @@
+#+title: bisos.pipreqs-plus
+#+DATE: <2026-07-29 Wed>
+#+AUTHOR: Mohsen BANAN
+#+OPTIONS: toc:4
+
+
+* Overview
+
+/bisos.pipreqs-plus/ is a thin layer on top of [[https://github.com/bndr/pipreqs][pipreqs]] that
+addresses two of pipreqs' shortcomings when generating
+=requirements.txt= for real-world Python projects:
+
+1. *Non-=.py= Python source files.* pipreqs walks =*.py= files only.
+   Many projects contain executable Python source under =bin/= with
+   different suffixes (=.cs=, =.pcs=, =.mcs=) or no extension at all.
+   =pipreqs-plus= transparently makes these files visible to pipreqs by
+   building a scratch directory of =.py= symlinks. Detection is
+   automatic: any file whose first line matches a Python shebang
+   (=#!.*python*=) is included. An optional =--extraExts= list catches
+   files that lack a shebang.
+
+2. *Namespace-package submodule imports.* When pipreqs encounters
+   =from NS.X import ...= or =import NS.X=, it collapses the record
+   down to a single =NS=. For genuine namespace packages where each
+   =NS.X= is separately published to PyPI (e.g. =bisos.b=,
+   =bisos.common=, =bisos.pycs=), this loses information the
+   =requirements.txt= needs. =pipreqs-plus= scans the sources
+   independently for =NS.X=-style imports and appends the two-level
+   names to =requirements.txt=. The bare =NS= line from pipreqs is
+   preserved.
+
+=bisos.pipreqs-plus= is intended to be broadly useful --- it does not
+depend on the BISOS platform for its core function. It is
+distributed as a =bisos-pip= package because that is the packaging
+convention its author uses.
+
+#+BEGIN: b:org:pypi:readme/pkgDocumentation :pkgName "capability-cs" :comment "basic"
+
+# PYPI Documentation Comes Here in _description.org
+#+END:
+
+
+* Table of Contents     :TOC:
+- [[#overview][Overview]]
+- [[#installation][Installation]]
+  - [[#installation-with-pip][Installation With pip]]
+  - [[#installation-with-pipx][Installation With pipx]]
+- [[#usage][Usage]]
+  - [[#minimal-invocation][Minimal invocation]]
+  - [[#full-invocation][Full invocation]]
+  - [[#parameters][Parameters]]
+- [[#how-it-works][How it works]]
+- [[#source-code][Source code]]
+
+* Installation
+
+The sources for the =bisos.pipreqs-plus= pip package are maintained at:
+https://github.com/bisos-pip/pipreqs-plus.
+
+The =bisos.pipreqs-plus= pip package is available at PYPI as
+https://pypi.org/project/bisos.pipreqs-plus.
+
+You can install =bisos.pipreqs-plus= with pip or pipx.
+
+** Installation With pip
+
+#+begin_src bash
+pip install bisos.pipreqs-plus
+#+end_src
+
+** Installation With pipx
+
+For command-line-only use, pipx is a good fit:
+
+#+begin_src bash
+pipx install bisos.pipreqs-plus
+#+end_src
+
+The following command is made available on =PATH=:
+
+- =pipreqs-plus.cs=
+
+*Prerequisite:* =pipreqs= itself must be available on =PATH= too.
+Recommended:
+
+#+begin_src bash
+pipx install pipreqs
+#+end_src
+
+* Usage
+
+** Minimal invocation
+
+Scan a package source tree and its =./bin= directory, write
+=./requirements.txt=:
+
+#+begin_src bash
+pipreqs-plus.cs -i genRequirements --srcDir=./myPackage
+#+end_src
+
+** Full invocation
+
+Every knob explicit:
+
+#+begin_src bash
+pipreqs-plus.cs -i genRequirements                       \
+    --srcDir=./myPackage                                 \
+    --binDir=./bin                                       \
+    --outFile=./requirements.txt                         \
+    --namespaces="['bisos', 'other']"                    \
+    --extraExts="['cs', 'pcs', 'mcs']"                   \
+    --pipreqsMode=no-pin
+#+end_src
+
+** Parameters
+
+| Parameter      | Kind      | Default                | Purpose                                                 |
+|----------------+-----------+------------------------+---------------------------------------------------------|
+| =srcDir=       | Mandatory | ---                    | Package source tree; scanned recursively.               |
+| =binDir=       | Optional  | =./bin=                | Executables/scripts dir; scanned top-level only.        |
+| =outFile=      | Optional  | =./requirements.txt=   | Where to write.                                         |
+| =extraExts=    | Optional  | =[]=                   | Python-literal list of extensions to treat as Python.   |
+| =namespaces=   | Optional  | =['bisos']=            | Python-literal list of namespace packages to expand.    |
+| =pipreqsMode=  | Optional  | ="no-pin"=             | Passed through to =pipreqs --mode=.                     |
+
+List-valued parameters (=namespaces=, =extraExts=) accept
+Python-literal syntax. Because PyCS (Python Command Service) is
+Python-centric, all list values on the command line are Python
+literals. Use double-quoted shell strings with single-quoted Python
+strings inside:
+
+#+begin_src bash
+--namespaces="['bisos', 'other']"
+--extraExts="['cs', 'pcs', 'mcs']"
+#+end_src
+
+* How it works
+
+Given =srcDir= and =binDir=, =pipreqs-plus.cs= builds a scratch
+directory of =.py= symlinks:
+
+- Files under =srcDir= are exposed as-is (they are already =.py=).
+- Files under =binDir/*= (top level only) are included if:
+  1. Their extension is =.py=, or
+  2. Their extension (without dot) is in =extraExts=, or
+  3. Their first line matches =^#!.*\bpython\d*\b= (a Python shebang).
+  Included files are symlinked with a =.py= suffix so pipreqs will
+  scan them.
+
+pipreqs is then invoked against the scratch directory and writes
+=outFile=.
+
+For each =NS= in =namespaces=, the scratch directory is scanned
+independently for =from NS.X ...= and =import NS.X ...= statements.
+The captured two-level =NS.X= names are appended to =outFile= and
+the file is sort-uniq'd in place.
+
+The scratch directory is removed on exit.
+
+* Source code
+
+Source code is written in COMEEGA
+(https://github.com/bx-blee/comeega); the primary implementation
+files are:
+
+- [[file:./py3/bin/pipreqs-plus.cs]] --- CLI entry point.
+- [[file:./py3/bisos/pipreqsPlus/scanner.py]] --- namespace-import scanner.
+- [[file:./py3/bisos/pipreqsPlus/symlinkTree.py]] --- scratch-tree builder with shebang detection.
+
+# Local Variables:
+# eval: (setq-local toc-org-max-depth 4)
+# End:
