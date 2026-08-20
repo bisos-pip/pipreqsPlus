@@ -54,7 +54,6 @@ requires = [
 'bisos.b',
 'bisos.common',
 'bisos.pipreqsPlus',
-"pipreqs",
 "setuptools==75.8.0",
 "wheel==0.38.4",
 ]
@@ -80,7 +79,7 @@ data_files = [
 ####+BEGIN: b:py3:pypi:setup/funcArgs :comment "defaults to --auto--"
 
 setuptools.setup(
-    name=pkgName(),  # 'tmo.pipreqsPlus'
+    name=pkgName(),  # 'bisos.pipreqsPlus'
     version=pkgVersion(),
     packages=setuptools.find_packages(),
     scripts=scripts,
